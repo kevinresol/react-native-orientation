@@ -7,7 +7,12 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
+import android.hardware.SensorManager;
 import android.util.Log;
+import android.view.Display;
+import android.view.OrientationEventListener;
+import android.view.Surface;
+import android.view.WindowManager;
 
 import com.facebook.common.logging.FLog;
 import com.facebook.react.bridge.Arguments;
@@ -39,14 +44,20 @@ public class OrientationModule extends ReactContextBaseJavaModule implements Lif
                 Log.d("receiver", String.valueOf(newConfig.orientation));
 
                 String orientationValue = newConfig.orientation == 1 ? "PORTRAIT" : "LANDSCAPE";
-
                 WritableMap params = Arguments.createMap();
                 params.putString("orientation", orientationValue);
+
+                Display display = ((WindowManager) getReactApplicationContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
+                WritableMap specificParams = Arguments.createMap();
+                specificParams.putString("specificOrientation", getSpecificOrientationString(display.getRotation()));
+
                 if (ctx.hasActiveCatalystInstance()) {
-                    ctx
-                    .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
-                    .emit("orientationDidChange", params);
+                    DeviceEventManagerModule.RCTDeviceEventEmitter emitter =
+                        ctx.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class);
+                    emitter.emit("orientationDidChange", params);
+                    emitter.emit("specificOrientationDidChange", specificParams);
                 }
+
             }
         };
         ctx.addLifecycleEventListener(this);
@@ -68,6 +79,15 @@ public class OrientationModule extends ReactContextBaseJavaModule implements Lif
         } else {
             callback.invoke(null, orientation);
         }
+    }
+
+    @ReactMethod
+    public void getSpecificOrientation(Callback callback) {
+        Display display = ((WindowManager) getReactApplicationContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
+
+        String orientation = this.getSpecificOrientationString(display.getRotation());
+
+        callback.invoke(null, orientation);
     }
 
     @ReactMethod
@@ -139,6 +159,21 @@ public class OrientationModule extends ReactContextBaseJavaModule implements Lif
             return "UNKNOWN";
         } else {
             return "null";
+        }
+    }
+
+    private String getSpecificOrientationString(int rotation) {
+        switch (rotation) {
+            case Surface.ROTATION_0:
+                return "PORTRAIT";
+            case Surface.ROTATION_90:
+                return "LANDSCAPE-LEFT";
+            case Surface.ROTATION_180:
+                return "PORTRAITUPSIDEDOWN";
+            case Surface.ROTATION_270:
+                return "LANDSCAPE-RIGHT" ;
+            default:
+                return "UNKNOWN";
         }
     }
 
